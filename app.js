@@ -7,7 +7,8 @@ const methodOverride = require("method-override");
 const ejsMate = require("ejs-mate")
 const wrapAsync = require("./utils/wrapAsync.js");
 const ExpressError = require("./utils/ExpressErrors.js");
-const {listingSchema} = require("./schema.js");
+const { listingSchema, reviewSchema} = require("./schema.js");
+const Review = require("./models/rewiew.js")
 
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "ejs");
@@ -35,7 +36,19 @@ app.get("/", (req, res)=>{
 const validateListing = (req, res, next)=>{
     let {error} = listingSchema.validate(req.body);
     if(error){
-        let errMsg = error.detials.map((el)=>{
+        let errMsg = error.details.map((el)=>{
+            el.message
+        }).join(",");
+        throw new ExpressError(400, errMsg);
+    }else{
+        next();
+    }
+}
+
+const validateReview = (req, res, next)=>{
+    let {error} = reviewSchema.validate(req.body);
+    if(error){
+        let errMsg = error.details.map((el)=>{
             el.message
         }).join(",");
         throw new ExpressError(400, errMsg);
@@ -86,23 +99,29 @@ app.delete("/listings/:id", wrapAsync(async(req, res)=>{
 //SHOW ROUTE
 app.get("/listings/:id", wrapAsync(async (req, res)=>{
     let {id} = req.params;
-    let oneListing = await Listing.findById(id);
+    let oneListing = await Listing.findById(id).populate("reviews");
     res.render("listings/show", {oneListing});
 }));
 
+//REVIEWS
+//POST REVIEW ROUTE
+app.post("/listings/:id/reviews", validateReview, wrapAsync(async (req, res)=>{
+    let listing = await Listing.findById(req.params.id);
+    let newReview = new Review(req.body.review);
+    listing.reviews.push(newReview);
+    await newReview.save();
+    await listing.save();
+    res.redirect(`/listings/${listing._id}`)
+}));
 
-// app.get("/testListings", async (req, res)=>{
-//     let sampleListing = new Listing({
-//         title: "My new Villa",
-//         description: "By the hills",
-//         price: 12000,
-//         location: "Shimla",
-//         country: "India"
-//     });
-//     await sampleListing.save();
-//     console.log("sample was saved");
-//     res.send("successful testing");
-// });
+//DELETE REVIEW ROUTE
+app.delete("/listings/:id/reviews/:reviewId", wrapAsync(async (req, res)=>{
+    let {id, reviewId} = req.params;
+    await Listing.findByIdAndUpdate(id, {$pull: {reviews: reviewId}});
+    await Review.findByIdAndDelete(reviewId);
+
+    res.redirect(`/listings/${id}`);
+}));
 
 app.all("/{*splat}", (req, res, next)=>{
     next(new ExpressError(404, "Page not found"));
