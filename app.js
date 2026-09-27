@@ -5,10 +5,14 @@ const path = require("path");
 const methodOverride = require("method-override");
 const ejsMate = require("ejs-mate")
 const ExpressError = require("./utils/ExpressErrors.js");
-const listings = require("./routes/listing.js");
-const reviews = require("./routes/review.js");
+const listingsRouter = require("./routes/listing.js");
+const reviewsRouter = require("./routes/review.js");
 const session = require("express-session");
 const flash = require("connect-flash");
+const passport = require("passport");
+const LocalStrategy = require("passport-local");
+const User = require("./models/user.js");
+const userRouter = require("./routes/user.js");
 
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "ejs");
@@ -30,6 +34,13 @@ const sessionOptions = {
 
 app.use(session(sessionOptions));
 app.use(flash());
+
+app.use(passport.initialize());
+app.use(passport.session());
+passport.use(new LocalStrategy(User.authenticate()));
+
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());
 
 main()
     .then(()=>{
@@ -53,9 +64,19 @@ app.use((req, res, next) =>{
     next();
 });
 
-app.use("/listings", listings);
+app.get("/demouser", async (req, res)=>{
+    let fakeUser = new User({
+        email: "student@gmail.com",
+        username: "dev-student"
+    })
+    let registeredUser = await User.register(fakeUser, "helloWorld");
+    res.send(registeredUser);
+});
 
-app.use("/listings/:id/reviews", reviews);
+app.use("/listings", listingsRouter);
+app.use("/listings/:id/reviews", reviewsRouter);
+app.use("/", userRouter);
+
 
 app.all("/{*splat}", (req, res, next)=>{
     next(new ExpressError(404, "Page not found"));
