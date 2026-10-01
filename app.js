@@ -2,8 +2,6 @@ if (process.env.NODE_ENV != "production") {
   require("dotenv").config();
 }
 
-console.log(process.env.SECRET);
-
 const express = require("express");
 const app = express();
 const mongoose = require("mongoose");
@@ -14,6 +12,7 @@ const ExpressError = require("./utils/ExpressErrors.js");
 const listingsRouter = require("./routes/listing.js");
 const reviewsRouter = require("./routes/review.js");
 const session = require("express-session");
+const MongoStore = require("connect-mongo").default;
 const flash = require("connect-flash");
 const passport = require("passport");
 const LocalStrategy = require("passport-local");
@@ -28,8 +27,23 @@ app.use(methodOverride("_method"));
 app.engine("ejs", ejsMate);
 app.use(express.static(path.join(__dirname, "public")));
 
+const dbUrl = process.env.ATLAS_DB_URL;
+
+const store = MongoStore.create({
+  mongoUrl: dbUrl,
+  crypto: {
+    secret: process.env.SECRET,
+  },
+  touchAfter: 24 * 60 * 60,
+});
+
+store.on("error", () => {
+  console.log("ERROR IN MONGO SESSION STORE", err);
+});
+
 const sessionOptions = {
-  secret: "mysupersecretcode",
+  store: store,
+  secret: process.env.SECRET,
   resave: false,
   saveUninitialized: true,
   cookie: {
@@ -50,11 +64,10 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "http://localhost:8080/auth/google/callback",
+      callbackURL: process.env.GOOGLE_CALLBACK_URL,
     },
     async (accesToken, refreshToken, profile, done) => {
       try {
-        console.log("GOOGLE PROFILE:", profile);
         let user = await User.findOne({
           googleId: profile.id,
         });
@@ -97,7 +110,7 @@ main()
   });
 
 async function main() {
-  await mongoose.connect("mongodb://127.0.0.1:27017/wanderlust");
+  await mongoose.connect(dbUrl);
 }
 
 app.use((req, res, next) => {
