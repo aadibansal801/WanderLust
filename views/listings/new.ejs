@@ -32,6 +32,21 @@
         <div class="invalid-feedback">Please enter a valid Description.</div>
       </div>
       <div class="mb-3">
+        <label for="category" class="form-label">Category</label>
+        <select
+          name="listing[category]"
+          id="category"
+          class="form-select"
+          required
+        >
+          <% categories.forEach(category => { %>
+            <option value="<%= category %>">
+                <%= category %>
+            </option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="mb-3">
         <label for="image" class="form-label">Upload Listing Image</label>
         <input
           type="file"

@@ -31,9 +31,23 @@
             class="form-control"
             required
           >
-            <%=listing.description%></textarea
+<%=listing.description%></textarea
           >
           <div class="invalid-feedback">Please enter a valid Description.</div>
+        </div>
+
+        <div class="mb-3">
+          <label for="category" class="form-label">Category</label>
+          <select name="listing[category]" id="category" class="form-select">
+            <% categories.forEach(category => { %>
+              <option
+                value="<%=category%>"
+                <%=listing.category === category ? "selected" : "" %>
+              >
+                <%=category%>
+              </option>
+            <% }); %>
+          </select>
         </div>
 
         <div class="mb-3">
